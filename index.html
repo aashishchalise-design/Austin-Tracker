@@ -877,9 +877,10 @@ function renderSquadsTab(){
   });
 
   const squadCards = filteredSquads.map(s => {
-    const reps = squadsFilterSearch
+    const reps = (squadsFilterSearch
       ? s.reps.filter(r => r.name.toLowerCase().includes(squadsFilterSearch.toLowerCase()))
-      : s.reps;
+      : s.reps.slice()
+    ).sort((a, b) => numFrom(b.weekCS) - numFrom(a.weekCS));
     if(squadsFilterSearch && !reps.length) return '';
     const repRows = reps.map(r => `
       <tr>
