@@ -869,7 +869,6 @@ function renderSquadsTab(){
   const leaderboardItems = squads.map(s => ({ name: s.name, weekSRA: s.totals.weekSRA || '0', achievement: s.achievement || '0%' }));
   const totalSRA = squads.reduce((sum, s) => sum + numFrom(s.totals.weekSRA), 0);
   const totalReps = squads.reduce((sum, s) => sum + s.reps.length, 0);
-  const squadsHitTarget = squads.filter(s => numFrom(s.achievement) >= 100).length;
 
   const filteredSquads = squads.filter(s => {
     if(squadsFilterName && s.name !== squadsFilterName) return false;
@@ -927,7 +926,6 @@ function renderSquadsTab(){
 
     <div class="stats" style="margin-top:20px;margin-bottom:20px;">
       <div class="stat"><div class="lbl">Squads</div><div class="val">${squads.length}</div></div>
-      <div class="stat" style="border-top-color:var(--green)"><div class="lbl">Squads hit target</div><div class="val" style="color:var(--green)">${squadsHitTarget}</div></div>
       <div class="stat" style="border-top-color:var(--gold)"><div class="lbl">Total SRA</div><div class="val" style="color:var(--gold)">${totalSRA}</div></div>
       <div class="stat"><div class="lbl">Reps tracked</div><div class="val">${totalReps}</div></div>
     </div>
