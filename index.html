@@ -77,6 +77,21 @@
   .chip-na{background:var(--panel-2);color:var(--text-faint);}
   .chip-label{font-size:9px;text-transform:uppercase;letter-spacing:0.4px;color:var(--text-faint);margin-bottom:4px;text-align:center;}
   .ratios{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;}
+  .lb-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;}
+  .lb-card{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;}
+  .lb-title{font-family:'Anton',sans-serif;color:var(--gold);font-size:15px;letter-spacing:0.4px;margin-bottom:10px;text-transform:uppercase;}
+  .lb-row{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border);}
+  .lb-row:last-child{border-bottom:none;}
+  .lb-rank{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;background:var(--panel-2);color:var(--text-dim);flex-shrink:0;}
+  .rank-bronze{background:#3A2210;color:#D08A4F;}
+  .lb-name{flex:1;font-weight:600;font-size:13px;}
+  .lb-val{font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--text-dim);}
+  .lb-empty{color:var(--text-faint);font-size:12px;padding:8px 0;}
+  .squad-block{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;margin-bottom:14px;}
+  .squad-block-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px;}
+  .squad-block-name{font-family:'Anton',sans-serif;font-size:18px;color:var(--text);}
+  .squad-block-meta{display:flex;gap:14px;font-size:12px;color:var(--text-dim);}
+  .squad-block-meta b{color:var(--gold);font-family:'JetBrains Mono',monospace;}
   .ratio{background:var(--panel-2);border-radius:6px;padding:6px 10px;font-size:11px;}
   .ratio .rk{color:var(--text-dim);margin-right:6px;}
   .ratio .rv{font-family:'JetBrains Mono',monospace;font-weight:600;color:var(--text);}
@@ -754,6 +769,180 @@ function renderTeamOverview(summary){
   `;
 }
 
+// ===== Squads section =====
+
+function parseSquadsSheet(rawGrid){
+  if(!rawGrid || !rawGrid.length) return { squads: [] };
+
+  // Find the shared header row: the row with the most cells literally equal to "Reps"
+  let headerRowIdx = -1, headerCols = [];
+  rawGrid.forEach((row, ri) => {
+    const cols = [];
+    row.forEach((cell, ci) => { if((cell||'').trim().toLowerCase() === 'reps') cols.push(ci); });
+    if(cols.length > headerCols.length){ headerCols = cols; headerRowIdx = ri; }
+  });
+  if(headerRowIdx === -1) return { squads: [] };
+
+  const squads = [];
+  headerCols.forEach(col => {
+    // Find squad name: first non-blank cell in this column below the header, before any "Total:" row
+    let nameRow = -1;
+    for(let r = headerRowIdx + 1; r < rawGrid.length; r++){
+      const v = (rawGrid[r][col] || '').trim();
+      if(v && v.toLowerCase() !== 'total:'){ nameRow = r; break; }
+      if(v.toLowerCase() === 'total:'){ break; }
+    }
+    if(nameRow === -1) return;
+    const squadName = (rawGrid[nameRow][col] || '').trim();
+
+    const reps = [];
+    let totals = null, target = '', achievement = '';
+    let r = nameRow + 1;
+    let safety = 0;
+    while(r < rawGrid.length && safety < 300){
+      safety++;
+      const cellVal = (rawGrid[r][col] || '').trim();
+      if(cellVal.toLowerCase() === 'total:'){
+        totals = {
+          weekCS: rawGrid[r][col+1] || '', weekSRA: rawGrid[r][col+2] || '', weekCAP: rawGrid[r][col+3] || '', weekIC: rawGrid[r][col+4] || '',
+          assistCS: rawGrid[r][col+5] || '', assistSRA: rawGrid[r][col+6] || '', assistCAP: rawGrid[r][col+7] || '', assistIC: rawGrid[r][col+8] || ''
+        };
+        // Target row typically follows immediately, then Achievement
+        for(let look = r+1; look <= r+3 && look < rawGrid.length; look++){
+          const label = (rawGrid[look][col] || '').trim().toLowerCase();
+          if(label === 'target') target = rawGrid[look][col+1] || '';
+          if(label === 'achievement') achievement = rawGrid[look][col+1] || '';
+        }
+        break;
+      }
+      if(cellVal){
+        reps.push({
+          name: cellVal,
+          weekCS: rawGrid[r][col+1] || '', weekSRA: rawGrid[r][col+2] || '', weekCAP: rawGrid[r][col+3] || '', weekIC: rawGrid[r][col+4] || '',
+          assistCS: rawGrid[r][col+5] || '', assistSRA: rawGrid[r][col+6] || '', assistCAP: rawGrid[r][col+7] || '', assistIC: rawGrid[r][col+8] || ''
+        });
+      }
+      r++;
+    }
+    squads.push({ name: squadName, reps, totals: totals || {}, target, achievement });
+  });
+
+  return { squads };
+}
+
+function numFrom(v){
+  if(!v) return 0;
+  const n = parseFloat(String(v).replace('%',''));
+  return isNaN(n) ? 0 : n;
+}
+
+let squadsFilterName = '';
+let squadsFilterSearch = '';
+let squadsPeriod = 'weekly';
+
+function buildLeaderboardCard(title, items, valueKey, valueLabel){
+  const sorted = items.slice().sort((a,b) => numFrom(b[valueKey]) - numFrom(a[valueKey])).slice(0, 3);
+  const rankClasses = ['b-gold','b-silver','rank-bronze'];
+  const rows = sorted.length ? sorted.map((item, i) => `
+    <div class="lb-row">
+      <span class="lb-rank ${rankClasses[i]||''}">${i+1}</span>
+      <span class="lb-name">${item.name}</span>
+      <span class="lb-val">${item[valueKey]} ${valueLabel}</span>
+    </div>`).join('') : `<div class="lb-empty">No data yet</div>`;
+  return `<div class="lb-card">
+    <div class="lb-title">${title}</div>
+    ${rows}
+  </div>`;
+}
+
+function renderSquadsTab(){
+  const content = document.getElementById('content');
+  const raw = squadsPeriod === 'weekly' ? store.squadsWeekly : store.squadsQrtly;
+  if(!raw){
+    content.innerHTML = `<div class="empty">No squads data yet. It should load automatically \u2014 try the refresh icon.</div>`;
+    document.getElementById('lastUpdated').textContent = 'Squads: no data yet';
+    return;
+  }
+  const parsed = parseSquadsSheet(raw);
+  const squads = parsed.squads;
+
+  const leaderboardItems = squads.map(s => ({ name: s.name, weekSRA: s.totals.weekSRA || '0', achievement: s.achievement || '0%' }));
+  const totalSRA = squads.reduce((sum, s) => sum + numFrom(s.totals.weekSRA), 0);
+  const totalReps = squads.reduce((sum, s) => sum + s.reps.length, 0);
+  const squadsHitTarget = squads.filter(s => numFrom(s.achievement) >= 100).length;
+
+  const filteredSquads = squads.filter(s => {
+    if(squadsFilterName && s.name !== squadsFilterName) return false;
+    return true;
+  });
+
+  const squadCards = filteredSquads.map(s => {
+    const reps = squadsFilterSearch
+      ? s.reps.filter(r => r.name.toLowerCase().includes(squadsFilterSearch.toLowerCase()))
+      : s.reps;
+    if(squadsFilterSearch && !reps.length) return '';
+    const repRows = reps.map(r => `
+      <tr>
+        <td>${r.name}</td>
+        <td>${r.weekCS||'&mdash;'}</td><td>${r.weekSRA||'&mdash;'}</td><td>${r.weekCAP||'&mdash;'}</td><td>${r.weekIC||'&mdash;'}</td>
+        <td>${r.assistCS||'&mdash;'}</td><td>${r.assistSRA||'&mdash;'}</td><td>${r.assistCAP||'&mdash;'}</td><td>${r.assistIC||'&mdash;'}</td>
+      </tr>`).join('');
+    return `<div class="squad-block">
+      <div class="squad-block-head">
+        <div class="squad-block-name">${s.name}</div>
+        <div class="squad-block-meta">
+          <span>SRA: <b>${s.totals.weekSRA||0}</b></span>
+          <span>Target: <b>${s.target||'&mdash;'}</b></span>
+          <span>Achievement: <b>${s.achievement||'&mdash;'}</b></span>
+        </div>
+      </div>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Rep</th><th colspan="4" style="text-align:center">Week</th><th colspan="4" style="text-align:center">Assist</th></tr>
+          <tr><th></th><th>CS</th><th>SRA</th><th>CAP</th><th>IC</th><th>CS</th><th>SRA</th><th>CAP</th><th>IC</th></tr></thead>
+          <tbody>${repRows || '<tr><td colspan="9" style="color:var(--text-faint)">No reps match</td></tr>'}</tbody>
+        </table>
+      </div>
+    </div>`;
+  }).filter(Boolean).join('');
+
+  content.innerHTML = `
+    <div class="controls" style="margin-bottom:18px;">
+      <div class="viewtoggle">
+        <span data-period="weekly" class="${squadsPeriod==='weekly'?'active':''}">Weekly</span>
+        <span data-period="qrtly" class="${squadsPeriod==='qrtly'?'active':''}">Quarterly</span>
+      </div>
+      <select id="squadFilter">
+        <option value="">All squads</option>
+        ${squads.map(s => `<option value="${s.name}" ${squadsFilterName===s.name?'selected':''}>${s.name}</option>`).join('')}
+      </select>
+      <input type="text" id="squadRepSearch" placeholder="Search rep..." value="${squadsFilterSearch}">
+    </div>
+
+    <div class="lb-grid">
+      ${buildLeaderboardCard(squadsPeriod==='weekly' ? 'This Week \u00b7 Top SRA' : 'This Quarter \u00b7 Top SRA', leaderboardItems, 'weekSRA', 'SRA')}
+      ${buildLeaderboardCard(squadsPeriod==='weekly' ? 'This Week \u00b7 Top Achievement' : 'This Quarter \u00b7 Top Achievement', leaderboardItems, 'achievement', '')}
+    </div>
+
+    <div class="stats" style="margin-top:20px;margin-bottom:20px;">
+      <div class="stat"><div class="lbl">Squads</div><div class="val">${squads.length}</div></div>
+      <div class="stat" style="border-top-color:var(--green)"><div class="lbl">Squads hit target</div><div class="val" style="color:var(--green)">${squadsHitTarget}</div></div>
+      <div class="stat" style="border-top-color:var(--gold)"><div class="lbl">Total SRA</div><div class="val" style="color:var(--gold)">${totalSRA}</div></div>
+      <div class="stat"><div class="lbl">Reps tracked</div><div class="val">${totalReps}</div></div>
+    </div>
+
+    ${squadCards || '<div class="empty">No squads found in this data.</div>'}
+  `;
+
+  document.getElementById('lastUpdated').textContent = `${squads.length} squads loaded (${squadsPeriod})`;
+
+  document.querySelectorAll('.viewtoggle span[data-period]').forEach(el => {
+    el.onclick = () => { squadsPeriod = el.dataset.period; render(); };
+  });
+  document.getElementById('squadFilter').onchange = (e) => { squadsFilterName = e.target.value; render(); };
+  document.getElementById('squadRepSearch').oninput = (e) => { squadsFilterSearch = e.target.value; render(); };
+}
+
 function render(){
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === currentTab));
   document.querySelectorAll('.viewtoggle span').forEach(v => v.classList.toggle('active', v.dataset.view === currentView));
@@ -786,8 +975,7 @@ function render(){
   } else {
     statsRow.classList.add('hidden');
     controlsRow.classList.add('hidden');
-    content.innerHTML = `<div class="empty">Squads view is coming soon \u2014 raw data is already being pulled live in the background, ready for when we build this section.</div>`;
-    lastUpdated.textContent = 'Squads (not built yet)';
+    renderSquadsTab();
   }
 }
 
