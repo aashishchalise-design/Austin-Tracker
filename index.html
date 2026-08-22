@@ -841,7 +841,7 @@ let squadsFilterSearch = '';
 let squadsPeriod = 'weekly';
 
 function buildLeaderboardCard(title, items, valueKey, valueLabel){
-  const sorted = items.slice().sort((a,b) => numFrom(b[valueKey]) - numFrom(a[valueKey])).slice(0, 3);
+  const sorted = items.slice().sort((a,b) => numFrom(b[valueKey]) - numFrom(a[valueKey]));
   const rankClasses = ['b-gold','b-silver','rank-bronze'];
   const rows = sorted.length ? sorted.map((item, i) => `
     <div class="lb-row">
