@@ -772,17 +772,35 @@ function renderTeamOverview(summary){
 function parseSquadsSheet(rawGrid){
   if(!rawGrid || !rawGrid.length) return { squads: [] };
 
-  // Find the shared header row: the row with the most cells literally equal to "Reps"
+  // Find the shared header row: the row with the most cells matching "Rep" or "Reps"
   let headerRowIdx = -1, headerCols = [];
   rawGrid.forEach((row, ri) => {
     const cols = [];
-    row.forEach((cell, ci) => { if((cell||'').trim().toLowerCase() === 'reps') cols.push(ci); });
+    row.forEach((cell, ci) => { if(/^reps?$/i.test((cell||'').trim())) cols.push(ci); });
     if(cols.length > headerCols.length){ headerCols = cols; headerRowIdx = ri; }
   });
   if(headerRowIdx === -1) return { squads: [] };
+  const headerRow = rawGrid[headerRowIdx];
 
   const squads = [];
-  headerCols.forEach(col => {
+  headerCols.forEach((col, blockIdx) => {
+    // This block's columns run from `col` up to (but not including) the next block's Rep/Reps column
+    const nextBlockCol = blockIdx + 1 < headerCols.length ? headerCols[blockIdx + 1] : headerRow.length;
+
+    // Map metric columns by reading the actual header labels in this block (robust to extra
+    // columns like PTO/DSS, and to different orderings) rather than assuming fixed offsets.
+    // The 2nd occurrence of each CS/SRA/CAP/IC label is treated as the "Assist" group.
+    const colMap = {};
+    const seenCount = { CS: 0, SRA: 0, CAP: 0, IC: 0 };
+    for(let c = col + 1; c < nextBlockCol; c++){
+      const label = (headerRow[c] || '').trim().toUpperCase();
+      if(seenCount.hasOwnProperty(label)){
+        seenCount[label]++;
+        const key = (seenCount[label] === 1 ? 'week' : 'assist') + label.charAt(0) + label.slice(1).toLowerCase();
+        colMap[key] = c;
+      }
+    }
+
     // Find squad name: first non-blank cell in this column below the header, before any "Total:" row
     let nameRow = -1;
     for(let r = headerRowIdx + 1; r < rawGrid.length; r++){
@@ -793,6 +811,11 @@ function parseSquadsSheet(rawGrid){
     if(nameRow === -1) return;
     const squadName = (rawGrid[nameRow][col] || '').trim();
 
+    const readMetrics = (row) => ({
+      weekCS: row[colMap.weekCs] || '', weekSRA: row[colMap.weekSra] || '', weekCAP: row[colMap.weekCap] || '', weekIC: row[colMap.weekIc] || '',
+      assistCS: row[colMap.assistCs] || '', assistSRA: row[colMap.assistSra] || '', assistCAP: row[colMap.assistCap] || '', assistIC: row[colMap.assistIc] || ''
+    });
+
     const reps = [];
     let totals = null, target = '', achievement = '';
     let r = nameRow + 1;
@@ -801,10 +824,7 @@ function parseSquadsSheet(rawGrid){
       safety++;
       const cellVal = (rawGrid[r][col] || '').trim();
       if(cellVal.toLowerCase() === 'total:'){
-        totals = {
-          weekCS: rawGrid[r][col+1] || '', weekSRA: rawGrid[r][col+2] || '', weekCAP: rawGrid[r][col+3] || '', weekIC: rawGrid[r][col+4] || '',
-          assistCS: rawGrid[r][col+5] || '', assistSRA: rawGrid[r][col+6] || '', assistCAP: rawGrid[r][col+7] || '', assistIC: rawGrid[r][col+8] || ''
-        };
+        totals = readMetrics(rawGrid[r]);
         // Target row typically follows immediately, then Achievement
         for(let look = r+1; look <= r+3 && look < rawGrid.length; look++){
           const label = (rawGrid[look][col] || '').trim().toLowerCase();
@@ -814,11 +834,7 @@ function parseSquadsSheet(rawGrid){
         break;
       }
       if(cellVal){
-        reps.push({
-          name: cellVal,
-          weekCS: rawGrid[r][col+1] || '', weekSRA: rawGrid[r][col+2] || '', weekCAP: rawGrid[r][col+3] || '', weekIC: rawGrid[r][col+4] || '',
-          assistCS: rawGrid[r][col+5] || '', assistSRA: rawGrid[r][col+6] || '', assistCAP: rawGrid[r][col+7] || '', assistIC: rawGrid[r][col+8] || ''
-        });
+        reps.push({ name: cellVal, ...readMetrics(rawGrid[r]) });
       }
       r++;
     }
