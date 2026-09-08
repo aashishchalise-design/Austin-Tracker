@@ -92,6 +92,8 @@
   .squad-block-name{font-family:'Anton',sans-serif;font-size:18px;color:var(--text);}
   .squad-block-meta{display:flex;gap:14px;font-size:12px;color:var(--text-dim);}
   .squad-block-meta b{color:var(--gold);font-family:'JetBrains Mono',monospace;}
+  .squad-total-row{border-top:2px solid var(--gold);}
+  .squad-total-row td{font-weight:800;color:var(--gold);background:var(--panel-2);}
   .ratio{background:var(--panel-2);border-radius:6px;padding:6px 10px;font-size:11px;}
   .ratio .rk{color:var(--text-dim);margin-right:6px;}
   .ratio .rv{font-family:'JetBrains Mono',monospace;font-weight:600;color:var(--text);}
@@ -901,6 +903,13 @@ function renderSquadsTab(){
         <td>${r.weekCS||'&mdash;'}</td><td>${r.weekSRA||'&mdash;'}</td><td>${r.weekCAP||'&mdash;'}</td><td>${r.weekIC||'&mdash;'}</td>
         <td>${r.assistCS||'&mdash;'}</td><td>${r.assistSRA||'&mdash;'}</td><td>${r.assistCAP||'&mdash;'}</td><td>${r.assistIC||'&mdash;'}</td>
       </tr>`).join('');
+    const t = s.totals || {};
+    const totalRow = `
+      <tr class="squad-total-row">
+        <td>Total</td>
+        <td>${t.weekCS||0}</td><td>${t.weekSRA||0}</td><td>${t.weekCAP||0}</td><td>${t.weekIC||0}</td>
+        <td>${t.assistCS||0}</td><td>${t.assistSRA||0}</td><td>${t.assistCAP||0}</td><td>${t.assistIC||0}</td>
+      </tr>`;
     return `<div class="squad-block">
       <div class="squad-block-head">
         <div class="squad-block-name">${s.name}</div>
@@ -914,7 +923,7 @@ function renderSquadsTab(){
         <table>
           <thead><tr><th>Rep</th><th colspan="4" style="text-align:center">Week</th><th colspan="4" style="text-align:center">Assist</th></tr>
           <tr><th></th><th>CS</th><th>SRA</th><th>CAP</th><th>IC</th><th>CS</th><th>SRA</th><th>CAP</th><th>IC</th></tr></thead>
-          <tbody>${repRows || '<tr><td colspan="9" style="color:var(--text-faint)">No reps match</td></tr>'}</tbody>
+          <tbody>${repRows || '<tr><td colspan="9" style="color:var(--text-faint)">No reps match</td></tr>'}${totalRow}</tbody>
         </table>
       </div>
     </div>`;
