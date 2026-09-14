@@ -163,6 +163,7 @@
     <div class="tab active" data-tab="tab1">Reps</div>
     <div class="tab" data-tab="tab2">Team overview</div>
     <div class="tab" data-tab="tab3">Squads</div>
+    <div class="tab" data-tab="tab4">Combine</div>
   </div>
 
   <div id="fetchBanner"></div>
@@ -421,6 +422,7 @@ async function tryLiveFetch(){
       if(ok1 || ok2){
         if(data.squadsWeekly) await saveData('squadsWeekly', data.squadsWeekly);
         if(data.squadsQrtly) await saveData('squadsQrtly', data.squadsQrtly);
+        if(data.combine) await saveData('combine', data.combine);
         banner.innerHTML = '';
         document.getElementById('statusDot').style.background = (ok1 && ok2) ? 'var(--green)' : 'var(--gold)';
         return;
@@ -965,6 +967,97 @@ function renderSquadsTab(){
   document.getElementById('squadRepSearch').oninput = (e) => { squadsFilterSearch = e.target.value; render(); };
 }
 
+// ===== Combine section =====
+
+function parseCombineSheet(rawGrid){
+  if(!rawGrid || !rawGrid.length) return { reps: [] };
+
+  let headerRowIdx = -1;
+  for(let i = 0; i < rawGrid.length; i++){
+    const row = rawGrid[i].map(c => (c||'').trim());
+    if(row.includes('Name') && row.includes('Total SRA') && row.includes('Total CAP')){
+      headerRowIdx = i;
+      break;
+    }
+  }
+  if(headerRowIdx === -1) return { reps: [] };
+
+  const header = rawGrid[headerRowIdx].map(c => (c||'').trim());
+  const nameCol = header.indexOf('Name');
+  const daysLeftCol = header.indexOf('Days Left In Combine');
+  const totalSRACol = header.indexOf('Total SRA');
+  const totalCAPCol = header.indexOf('Total CAP');
+
+  const SRA_NEEDED_FOR_DRAFT = 12;
+  const CAP_NEEDED_FOR_DRAFT = 7;
+
+  const reps = [];
+  for(let r = headerRowIdx + 1; r < rawGrid.length; r++){
+    const row = rawGrid[r];
+    const name = (row[nameCol] || '').trim();
+    if(!name) continue;
+    const totalSRA = numFrom(row[totalSRACol]);
+    const totalCAP = numFrom(row[totalCAPCol]);
+    reps.push({
+      name,
+      daysLeft: daysLeftCol >= 0 ? (row[daysLeftCol] || '') : '',
+      totalSRA,
+      totalCAP,
+      sraRemaining: Math.max(0, SRA_NEEDED_FOR_DRAFT - totalSRA),
+      capRemaining: Math.max(0, CAP_NEEDED_FOR_DRAFT - totalCAP)
+    });
+  }
+  return { reps };
+}
+
+let combineSort = 'daysLeft';
+
+function renderCombineTab(){
+  const content = document.getElementById('content');
+  const raw = store.combine;
+  if(!raw){
+    content.innerHTML = `<div class="empty">No combine data yet. Try the refresh icon.</div>`;
+    document.getElementById('lastUpdated').textContent = 'Combine: no data yet';
+    return;
+  }
+  const parsed = parseCombineSheet(raw);
+  const reps = parsed.reps.slice().sort((a,b) => {
+    if(combineSort === 'sraRemaining') return a.sraRemaining - b.sraRemaining;
+    if(combineSort === 'capRemaining') return a.capRemaining - b.capRemaining;
+    return numFrom(a.daysLeft) - numFrom(b.daysLeft);
+  });
+
+  const rows = reps.map(r => `
+    <tr>
+      <td>${r.name}</td>
+      <td>${r.daysLeft || '&mdash;'}</td>
+      <td>${r.totalSRA}</td>
+      <td><span style="color:${r.sraRemaining===0?'var(--green)':'var(--gold)'};font-weight:700">${r.sraRemaining}</span></td>
+      <td>${r.totalCAP}</td>
+      <td><span style="color:${r.capRemaining===0?'var(--green)':'var(--gold)'};font-weight:700">${r.capRemaining}</span></td>
+    </tr>`).join('');
+
+  content.innerHTML = `
+    <div class="controls" style="margin-bottom:18px;">
+      <select id="combineSortSelect">
+        <option value="daysLeft" ${combineSort==='daysLeft'?'selected':''}>Sort: Days Left in Combine</option>
+        <option value="sraRemaining" ${combineSort==='sraRemaining'?'selected':''}>Sort: SRA Remaining</option>
+        <option value="capRemaining" ${combineSort==='capRemaining'?'selected':''}>Sort: CAP Remaining</option>
+      </select>
+    </div>
+    <div class="tablewrap">
+      <table>
+        <thead><tr>
+          <th>Name</th><th>Days Left in Combine</th><th>Total SRA</th><th>SRA Remaining (of 12)</th><th>Total CAP</th><th>CAP Remaining (of 7)</th>
+        </tr></thead>
+        <tbody>${rows || '<tr><td colspan="6" style="color:var(--text-faint)">No reps found</td></tr>'}</tbody>
+      </table>
+    </div>
+  `;
+  document.getElementById('lastUpdated').textContent = `${reps.length} reps in Combine`;
+  document.getElementById('combineSortSelect').onchange = (e) => { combineSort = e.target.value; render(); };
+}
+
 function render(){
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === currentTab));
   document.querySelectorAll('.viewtoggle span').forEach(v => v.classList.toggle('active', v.dataset.view === currentView));
@@ -994,10 +1087,14 @@ function render(){
     const btn2 = document.getElementById('emptyPasteBtn2');
     if(btn2) btn2.onclick = openModal;
     lastUpdated.textContent = summary ? 'Team overview loaded' : 'No data yet';
-  } else {
+  } else if(currentTab === 'tab3') {
     statsRow.classList.add('hidden');
     controlsRow.classList.add('hidden');
     renderSquadsTab();
+  } else {
+    statsRow.classList.add('hidden');
+    controlsRow.classList.add('hidden');
+    renderCombineTab();
   }
 }
 
