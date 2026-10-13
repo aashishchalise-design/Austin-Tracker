@@ -164,6 +164,7 @@
     <div class="tab" data-tab="tab2">Team overview</div>
     <div class="tab" data-tab="tab3">Squads</div>
     <div class="tab" data-tab="tab4">Combine</div>
+    <div class="tab" data-tab="tab5">PODs</div>
   </div>
 
   <div id="fetchBanner"></div>
@@ -1091,6 +1092,11 @@ function render(){
     statsRow.classList.add('hidden');
     controlsRow.classList.add('hidden');
     renderSquadsTab();
+  } else if(currentTab === 'tab5') {
+    statsRow.classList.add('hidden');
+    controlsRow.classList.add('hidden');
+    content.innerHTML = `<div style="display:flex;justify-content:flex-end;margin-bottom:10px"><a href="https://austin.drip.run/" target="_blank" rel="noopener" style="color:var(--gold,#D9A441);font-weight:600;text-decoration:none;border:1px solid var(--gold,#D9A441);padding:6px 12px;border-radius:6px;font-size:13px">Open in new tab ↗</a></div><iframe src="https://austin.drip.run/" style="width:100%;height:80vh;border:1px solid #2a2520;border-radius:8px;background:#fff" loading="lazy"></iframe><div style="margin-top:10px;color:#8a8279;font-size:12px">If the page above is blank, the site blocks embedding. Use "Open in new tab".</div>`;
+    lastUpdated.textContent = 'austin.drip.run';
   } else {
     statsRow.classList.add('hidden');
     controlsRow.classList.add('hidden');
