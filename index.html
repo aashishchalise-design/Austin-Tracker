@@ -278,7 +278,8 @@ function applyHiddenColumns(parsed){
     headers.forEach((h, idx) => obj[h] = row[originalHeaders[idx]]);
     return obj;
   });
-  return applyIcTiers({ headers, rows });
+  const nameH = headers.find(h => /rep name/i.test(h)) || headers[0];
+  return applyIcTiers({ headers, rows: rows.filter(r => !/^(grand\s*)?totals?:?$/i.test(String(r[nameH]||'').trim())) });
 }
 
 // Tiers are driven by IC QTR: Level 1 = 3, Level 2 = 5, Level 3 = 7, Premier = 10, Franchise = 20
@@ -348,6 +349,7 @@ function parseRepTable(text){
   for(let r = headerIdx+1; r < rows.length; r++){
     const row = rows[r];
     if(!row[nameColIdx] || !row[nameColIdx].trim()) break;
+    if(/^(grand\s*)?totals?:?$/i.test(row[nameColIdx].trim())) continue;
     const obj = {};
     validCols.forEach(x => obj[x.h] = (row[x.i] !== undefined ? row[x.i] : ''));
     dataRows.push(obj);
