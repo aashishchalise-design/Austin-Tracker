@@ -174,8 +174,8 @@
     <input type="text" id="search" placeholder="Search rep name...">
     <select id="sortBy"></select>
     <div class="viewtoggle">
-      <span data-view="cards" class="active">Cards</span>
-      <span data-view="table">Table</span>
+      <span data-view="cards">Cards</span>
+      <span data-view="table" class="active">Table</span>
     </div>
   </div>
 
@@ -242,7 +242,7 @@ function sheetRowsToTSV(rows){
 }
 
 let currentTab = 'tab1';
-let currentView = 'cards';
+let currentView = 'table';
 let store = { tab1: null, tab2: null };
 let fetchStatus = { tab1: 'pending', tab2: 'pending' };
 window.__SEED__ = true;
@@ -607,7 +607,9 @@ function renderControls(parsed){
   } else {
     const { statusCols } = classify(parsed.headers);
     const qtrCol = statusCols.find(c => /qtr/i.test(c));
-    if(qtrCol) sortSel.value = qtrCol;
+    const l1Col = parsed.headers.find(h => /count.*towards.*level.*1/i.test(h));
+    if(l1Col) sortSel.value = l1Col;
+    else if(qtrCol) sortSel.value = qtrCol;
   }
   controlsRow.classList.remove('hidden');
 }
