@@ -293,21 +293,26 @@ function icValue(row, headers){
   const c = headers.find(h => /^ic qtr$/i.test(h));
   return c ? (parseFloat(row[c]) || 0) : 0;
 }
+const IC_NEEDED_COLS = [['IC needed to hit Level 1',3],['IC needed to hit Level 2',5],['IC needed to hit Level 3',7],['IC needed to hit Premier',10],['IC needed to hit Franchise',20]];
 function applyIcTiers(parsed){
   if(!parsed) return parsed;
   const icCol = parsed.headers.find(h => /^ic qtr$/i.test(h));
   if(!icCol) return parsed;
   const statusCol = parsed.headers.find(h => /status/i.test(h) && /qtr/i.test(h)) || parsed.headers.find(h => /status/i.test(h));
-  const icNeededCol = parsed.headers.find(h => /ic needed to hit level 1/i.test(h));
+  // drop any sheet-provided "IC needed/to hit" columns; we compute them from the new thresholds
+  parsed.headers = parsed.headers.filter(h => !/^ic\b.*\bto hit\b/i.test(h.trim()));
+  const icQtrIdx = parsed.headers.indexOf(icCol);
+  const newNames = IC_NEEDED_COLS.map(x => x[0]);
+  parsed.headers.splice(icQtrIdx + 1, 0, ...newNames);
   parsed.rows.forEach(r => {
     const ic = parseFloat(r[icCol]) || 0;
     if(statusCol){
       const t = IC_TIERS.find(x => ic >= x[0]);
       r[statusCol] = t ? t[1] : '';
     }
-    if(icNeededCol){
-      r[icNeededCol] = ic >= 3 ? ' Not Needed ' : String(+(3 - ic).toFixed(2));
-    }
+    IC_NEEDED_COLS.forEach(([name, thr]) => {
+      r[name] = ic >= thr ? ' Not Needed ' : String(+(thr - ic).toFixed(2));
+    });
   });
   return parsed;
 }
