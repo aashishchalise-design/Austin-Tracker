@@ -261,6 +261,8 @@ const HIDDEN_COLUMNS = [
   'CAP needed to hit Club',
   'SRA needed to hit Level 1',
   'CAP needed to hit Level 1',
+  'CAP to hit Level 2',
+  'SRA to hit high premier',
   'Employee ID'
 ];
 
@@ -271,10 +273,11 @@ const HEADER_RENAMES = {
 function applyHiddenColumns(parsed){
   if(!parsed) return parsed;
   const hiddenSet = new Set(HIDDEN_COLUMNS.map(h => h.toLowerCase()));
+  const isHiddenHeader = h => hiddenSet.has(h.toLowerCase()) || /^(sra|cap)\b.*\bto hit\b/i.test(h.trim());
   const headers = parsed.headers
-    .filter(h => !hiddenSet.has(h.toLowerCase()))
+    .filter(h => !isHiddenHeader(h))
     .map(h => HEADER_RENAMES[h.toLowerCase()] || h);
-  const originalHeaders = parsed.headers.filter(h => !hiddenSet.has(h.toLowerCase()));
+  const originalHeaders = parsed.headers.filter(h => !isHiddenHeader(h));
   const rows = parsed.rows.map(row => {
     const obj = {};
     headers.forEach((h, idx) => obj[h] = row[originalHeaders[idx]]);
@@ -1185,7 +1188,7 @@ document.getElementById('sortBy').onchange = render;
     const cached1raw = await storageGetRaw('tab1');
     if(cached1raw){
       const parsedCached = JSON.parse(cached1raw);
-      if(parsedCached.headers && parsedCached.headers.some(h => HIDDEN_COLUMNS.map(x=>x.toLowerCase()).includes(h.toLowerCase()))){
+      if(parsedCached.headers && parsedCached.headers.some(h => HIDDEN_COLUMNS.map(x=>x.toLowerCase()).includes(h.toLowerCase()) || /^(sra|cap)\b.*\bto hit\b/i.test(h.trim()))){
         await saveData('tab1', applyHiddenColumns(parsedCached));
       }
     }
