@@ -532,7 +532,7 @@ function hasAnySRA(row, headers){
   if(!sraQtrCol && !icQtrCol) return true;
   const sra = sraQtrCol ? (parseFloat(row[sraQtrCol]) || 0) : 0;
   const ic = icQtrCol ? (parseFloat(row[icQtrCol]) || 0) : 0;
-  return sra >= 1 || ic >= 1;
+  return sra > 0 || ic > 0;
 }
 
 function getQualifyingRows(parsed){
