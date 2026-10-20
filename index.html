@@ -349,16 +349,24 @@ function firstNonEmptyIndex(row){
 
 function parseRepTable(text){
   const rows = parseRows(text);
-  const headerIdx = rows.findIndex(r => r.some(c => c.trim().toLowerCase() === 'rep name'));
+  const isNameHdr = c => /^(rep\s*name|rep|name)$/i.test(c.trim());
+  const headerIdx = rows.findIndex(r => r.some(isNameHdr) && r.filter(c => c.trim()).length >= 4);
   if(headerIdx === -1) return null;
   const rawHeaders = rows[headerIdx];
-  const nameColIdx = rawHeaders.findIndex(c => c.trim().toLowerCase() === 'rep name');
+  const nameColIdx = rawHeaders.findIndex(isNameHdr);
   const validCols = rawHeaders.map((h,i) => ({h: h.trim(), i})).filter(x => x.h.length);
+  validCols.forEach(x => { if(isNameHdr(x.h) && x.i === nameColIdx) x.h = 'Rep Name'; });
   const headers = validCols.map(x => x.h);
   const dataRows = [];
+  let blankRun = 0;
   for(let r = headerIdx+1; r < rows.length; r++){
     const row = rows[r];
-    if(!row[nameColIdx] || !row[nameColIdx].trim()) break;
+    if(!row[nameColIdx] || !row[nameColIdx].trim()){
+      // tolerate small gaps; stop after 3 consecutive blank-name rows
+      if(++blankRun >= 3) break;
+      continue;
+    }
+    blankRun = 0;
     if(/^(grand\s*)?totals?:?$/i.test(row[nameColIdx].trim())) continue;
     const obj = {};
     validCols.forEach(x => obj[x.h] = (row[x.i] !== undefined ? row[x.i] : ''));
@@ -444,7 +452,8 @@ function parseTeamSummary(text){
   return { metrics, secondary, ratios, tiers, totalDays, daysElapsed };
 }
 
-async function tryLiveFetch(){
+let repsParseWarn = '';
+async function tryLiveFetch(){ repsParseWarn = '';
   const banner = document.getElementById('fetchBanner');
   let jsonpError = null;
 
@@ -457,12 +466,13 @@ async function tryLiveFetch(){
       const parsed2 = parseTeamSummary(tab2Text);
       let ok1 = false, ok2 = false;
       if(parsed1){ await saveData('tab1', parsed1); fetchStatus.tab1 = 'ok'; ok1 = true; }
+      else { repsParseWarn = 'The Reps sheet came through but could not be read (rows: ' + (data.raceToLevel1||[]).length + '). Check that the "Race to Level 1" tab still has a "Rep Name" header row.'; }
       if(parsed2){ await saveData('tab2', parsed2); fetchStatus.tab2 = 'ok'; ok2 = true; }
       if(ok1 || ok2){
         if(data.squadsWeekly) await saveData('squadsWeekly', data.squadsWeekly);
         if(data.squadsQrtly) await saveData('squadsQrtly', data.squadsQrtly);
         if(data.combine) await saveData('combine', data.combine);
-        banner.innerHTML = '';
+        banner.innerHTML = repsParseWarn ? '<div class="banner banner-warn">' + repsParseWarn + ' Showing last saved rep data.</div>' : '';
         document.getElementById('statusDot').style.background = (ok1 && ok2) ? 'var(--green)' : 'var(--gold)';
         return;
       } else {
