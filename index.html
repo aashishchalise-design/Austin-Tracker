@@ -458,7 +458,9 @@ async function tryLiveFetch(){ repsParseWarn = '';
   let jsonpError = null;
 
   try{
-    const data = await loadViaJsonp(APPS_SCRIPT_URL, 45000);
+    let data;
+    try{ data = await loadViaJsonp(APPS_SCRIPT_URL, 60000); }
+    catch(firstErr){ data = await loadViaJsonp(APPS_SCRIPT_URL, 60000); } // one automatic retry (Apps Script can be slow on a cold start)
     if(data && data.raceToLevel1 && data.overallTargets){
       const tab1Text = sheetRowsToTSV(data.raceToLevel1);
       const tab2Text = sheetRowsToTSV(data.overallTargets);
