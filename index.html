@@ -204,14 +204,6 @@
         <div><span>Premier</span><b>10 IC</b></div>
         <div><span>Franchise</span><b>20 IC</b></div>
       </div>
-      <div class="hero-count">
-        <div class="hc-label">Quarter ends in</div>
-        <div class="hc-boxes">
-          <div class="hc-box"><b id="cdDays">--</b><span>Days</span></div>
-          <div class="hc-box"><b id="cdHrs">--</b><span>Hrs</span></div>
-          <div class="hc-box"><b id="cdMin">--</b><span>Min</span></div>
-        </div>
-      </div>
     </div>
   </div>
 </header>
@@ -1284,19 +1276,7 @@ document.getElementById('sortBy').onchange = render;
   render();
 })();
 
-// Quarter countdown (calendar quarter, viewer's local time)
-function updateCountdown(){
-  const now = new Date();
-  const qEndMonth = Math.floor(now.getMonth()/3)*3 + 3;
-  const end = new Date(now.getFullYear(), qEndMonth, 1, 0, 0, 0);
-  let ms = Math.max(0, end - now);
-  const d = Math.floor(ms/86400000); ms -= d*86400000;
-  const h = Math.floor(ms/3600000); ms -= h*3600000;
-  const m = Math.floor(ms/60000);
-  const set = (id,v) => { const el = document.getElementById(id); if(el) el.textContent = String(v); };
-  set('cdDays', d); set('cdHrs', h); set('cdMin', m);
-}
-updateCountdown(); setInterval(updateCountdown, 30000);
+
 </script>
 </body>
 </html>
