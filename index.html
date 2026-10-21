@@ -1162,6 +1162,8 @@ function renderCombineTab(){
 }
 
 function render(){
+  const heroRow = document.querySelector('.hero-row');
+  if(heroRow) heroRow.style.display = (currentTab === 'tab1') ? '' : 'none';
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === currentTab));
   document.querySelectorAll('.viewtoggle span').forEach(v => v.classList.toggle('active', v.dataset.view === currentView));
   const content = document.getElementById('content');
